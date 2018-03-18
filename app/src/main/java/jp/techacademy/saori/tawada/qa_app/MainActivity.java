@@ -1,8 +1,6 @@
 package jp.techacademy.saori.tawada.qa_app;
 
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
@@ -29,6 +27,7 @@ import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -37,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
 
     private DatabaseReference mDatabaseReference;
     private DatabaseReference mGenreRef;
+    private DatabaseReference mFavoriteRef;
     private ListView mListView;
     private ArrayList<Question> mQuestionArrayList;
     private QuestionsListAdapter mAdapter;
@@ -157,6 +157,15 @@ public class MainActivity extends AppCompatActivity {
         toggle.syncState();
 
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
+
+        Menu menu = navigationView.getMenu();
+        MenuItem favoriteItem = menu.findItem(R.id.nav_favorite);
+        favoriteItem.setVisible(false);
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user != null) {
+            favoriteItem.setVisible(true);
+        }
+
         navigationView.setNavigationItemSelectedListener(new NavigationView.OnNavigationItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(MenuItem item) {
@@ -174,23 +183,30 @@ public class MainActivity extends AppCompatActivity {
                 } else if (id == R.id.nav_computer) {
                     mToolbar.setTitle("コンピューター");
                     mGenre = 4;
+                } else if (id == R.id.nav_favorite) {
+                    mToolbar.setTitle("お気に入り");
+                    mGenre = 5;
                 }
 
-                DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
-                drawer.closeDrawer(GravityCompat.START);
+                if (mGenre < 5) {
+                    DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+                    drawer.closeDrawer(GravityCompat.START);
 
-                //質問のリストをクリアしてから再度Adapterにセットし、AdapterをListViewにセットし直す
-                mQuestionArrayList.clear();
-                mAdapter.setQuestionArrayList(mQuestionArrayList);
-                mListView.setAdapter(mAdapter);
+                    //質問のリストをクリアしてから再度Adapterにセットし、AdapterをListViewにセットし直す
+                    mQuestionArrayList.clear();
+                    mAdapter.setQuestionArrayList(mQuestionArrayList);
+                    mListView.setAdapter(mAdapter);
 
-                //選択したジャンルにリスナーを登録する
-                if (mGenreRef != null) {
-                    mGenreRef.removeEventListener(mEventListener);
+                    //選択したジャンルにリスナーを登録する
+                    if (mGenreRef != null) {
+                        mGenreRef.removeEventListener(mEventListener);
+                    }
+                    mGenreRef = mDatabaseReference.child(Const.ContentsPATH).child(String.valueOf(mGenre));
+                    mGenreRef.addChildEventListener(mEventListener);
+                } else {
+                    Intent intent = new Intent(getApplicationContext(), FavoriteActivity.class);
+                    startActivity(intent);
                 }
-                mGenreRef = mDatabaseReference.child(Const.ContentsPATH).child(String.valueOf(mGenre));
-                mGenreRef.addChildEventListener(mEventListener);
-
                 return true;
             }
         });

@@ -2,6 +2,7 @@ package jp.techacademy.saori.tawada.qa_app;
 
 import android.content.Intent;
 import android.support.design.widget.FloatingActionButton;
+import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -16,6 +17,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.HashMap;
+import java.util.Map;
 
 public class QuestionDetailActivity extends AppCompatActivity {
 
@@ -24,6 +26,37 @@ public class QuestionDetailActivity extends AppCompatActivity {
     private QuestionDetailListAdapter mAdapter;
 
     private DatabaseReference mAnswerRef;
+
+    private FloatingActionButton fabFavorite;
+    private boolean mFavoriteFlag = false;
+
+    private ChildEventListener mFavoriteListener = new ChildEventListener() {
+        @Override
+        public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+            mFavoriteFlag = true;
+            fabFavorite.setImageResource(android.R.drawable.btn_star_big_on);
+        }
+
+        @Override
+        public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+        }
+
+        @Override
+        public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+        }
+
+        @Override
+        public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+        }
+
+        @Override
+        public void onCancelled(DatabaseError databaseError) {
+
+        }
+    };
 
     private ChildEventListener mEventListener = new ChildEventListener() {
         @Override
@@ -86,7 +119,7 @@ public class QuestionDetailActivity extends AppCompatActivity {
         mListView.setAdapter(mAdapter);
         mAdapter.notifyDataSetChanged();
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+        final FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -103,6 +136,58 @@ public class QuestionDetailActivity extends AppCompatActivity {
                     intent.putExtra("question", mQuestion);
                     startActivity(intent);
                 }
+            }
+        });
+
+
+        fabFavorite = (FloatingActionButton) findViewById(R.id.fabFavorite);
+        final FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            fabFavorite.setVisibility(View.INVISIBLE);
+        } else {
+            fabFavorite.setVisibility(View.VISIBLE);
+            DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference();
+            DatabaseReference userRef = databaseReference.child(Const.FavoritePATH).child(user.getUid()).child(mQuestion.getQuestionUid());
+            userRef.addChildEventListener(mFavoriteListener);
+        }
+
+        DatabaseReference databaseReference1 = FirebaseDatabase.getInstance().getReference();
+        DatabaseReference favoriteRef = databaseReference1.child(Const.FavoritePATH).child(user.getUid()).child(String.valueOf(mQuestion.getQuestionUid()));
+        String favoriteUid = mQuestion.getQuestionUid().toString();
+        DatabaseReference questionRef = databaseReference1.child(Const.ContentsPATH).child(String.valueOf(mQuestion.getGenre())).child(mQuestion.getQuestionUid());
+        String questionUid = mQuestion.getQuestionUid().toString();
+        if (favoriteRef.equals(questionUid)) {
+            fabFavorite.setImageResource(android.R.drawable.btn_star_big_on);
+            mFavoriteFlag = true;
+        } else {
+            fabFavorite.setImageResource(android.R.drawable.btn_star_big_off);
+            mFavoriteFlag = false;
+        }
+
+        fabFavorite.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (mFavoriteFlag == false) {
+                    DatabaseReference databaseReference1 = FirebaseDatabase.getInstance().getReference();
+                    DatabaseReference favoriteRef = databaseReference1.child(Const.FavoritePATH).child(user.getUid()).child(String.valueOf(mQuestion.getQuestionUid()));
+                    Map<String, String> date = new HashMap<String, String>();
+                    String favoriteUid = mQuestion.getQuestionUid().toString();
+                    date.put("genre", String.valueOf(mQuestion.getGenre()));
+                    favoriteRef.setValue(date);
+
+                    fabFavorite.setImageResource(android.R.drawable.btn_star_big_on);
+
+                    Snackbar.make(v, "お気に入りに追加しました", Snackbar.LENGTH_LONG).show();
+                } else {
+                    DatabaseReference databaseReference = FirebaseDatabase.getInstance().getReference();
+                    DatabaseReference favoriteRef = databaseReference.child(Const.FavoritePATH).child(user.getUid()).child(String.valueOf(mQuestion.getQuestionUid()));
+                    favoriteRef.setValue(null);
+
+                    fabFavorite.setImageResource(android.R.drawable.btn_star_big_off);
+
+                    Snackbar.make(v, "お気に入りを解除しました", Snackbar.LENGTH_LONG).show();
+                }
+                mFavoriteFlag = !mFavoriteFlag;
             }
         });
 
